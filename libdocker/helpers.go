@@ -18,11 +18,13 @@ package libdocker
 
 import (
 	"fmt"
-	"github.com/docker/go-connections/nat"
-	v1 "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/docker/go-connections/nat"
+	v1 "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 
 	dockerref "github.com/docker/distribution/reference"
 	dockertypes "github.com/docker/docker/api/types"
@@ -206,8 +208,13 @@ func GenerateEnvList(envs []*v1.KeyValue) (result []string) {
 // 'Z', if the volume requires SELinux relabeling
 // propagation mode such as 'rslave'
 func GenerateMountBindings(mounts []*v1.Mount) []string {
+	shouldExcludeHostMountWindows := runtime.GOOS == "windows"
 	result := make([]string, 0, len(mounts))
 	for _, m := range mounts {
+		windowsEtcHostsPath := "C:\\Windows\\System32\\drivers\\etc\\hosts"
+		if m.ContainerPath == windowsEtcHostsPath && shouldExcludeHostMountWindows {
+			continue
+		}
 		bind := fmt.Sprintf("%s:%s", m.HostPath, m.ContainerPath)
 		var attrs []string
 		if m.Readonly {
@@ -288,4 +295,3 @@ func MakePortsAndBindings(
 	}
 	return exposedPorts, portBindings
 }
-
